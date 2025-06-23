@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	helpmemcache "github.com/prometheus/memcached_exporter/help/memcache"
+	helpmemcache "memcached_exporter/help/memcache"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
