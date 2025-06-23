@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grobie/gomemcache/memcache"
+	helpmemcache "github.com/prometheus/memcached_exporter/help/memcache"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -40,6 +40,8 @@ type Exporter struct {
 	timeout   time.Duration
 	logger    *slog.Logger
 	tlsConfig *tls.Config
+	username  string
+	password  string
 
 	up                       *prometheus.Desc
 	uptime                   *prometheus.Desc
@@ -133,12 +135,14 @@ type Exporter struct {
 }
 
 // New returns an initialized exporter.
-func New(server string, timeout time.Duration, logger *slog.Logger, tlsConfig *tls.Config) *Exporter {
+func New(server string, timeout time.Duration, logger *slog.Logger, tlsConfig *tls.Config, username, password string) *Exporter {
 	return &Exporter{
 		address:   server,
 		timeout:   timeout,
 		logger:    logger,
 		tlsConfig: tlsConfig,
+		username:  username,
+		password:  password,
 		up: prometheus.NewDesc(
 			prometheus.BuildFQName(Namespace, "", "up"),
 			"Could the memcached server be reached.",
@@ -774,14 +778,11 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // Collect fetches the statistics from the configured memcached server, and
 // delivers them as Prometheus metrics. It implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	c, err := memcache.New(e.address)
-	if err != nil {
-		ch <- prometheus.MustNewConstMetric(e.up, prometheus.GaugeValue, 0)
-		e.logger.Error("Failed to connect to memcached", "err", err)
-		return
-	}
+	c := helpmemcache.New(e.address)
 	c.Timeout = e.timeout
-	c.TlsConfig = e.tlsConfig
+	if e.username != "" && e.password != "" {
+		c.SetAuth(e.username, e.password)
+	}
 
 	up := float64(1)
 	stats, err := c.Stats()

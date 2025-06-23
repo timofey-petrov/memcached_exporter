@@ -50,6 +50,7 @@ func main() {
 		webConfig          = webflag.AddFlags(kingpin.CommandLine, ":9150")
 		metricsPath        = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		scrapePath         = kingpin.Flag("web.scrape-path", "Path under which to receive scrape requests.").Default("/scrape").String()
+		authFile           = kingpin.Flag("memcached.auth-file", "Path to file with memcached username:password").Default("").String()
 	)
 
 	promslogConfig := &promslog.Config{}
@@ -65,6 +66,8 @@ func main() {
 	var (
 		tlsConfig *tls.Config
 		err       error
+		username  string
+		password  string
 	)
 	if *enableTLS {
 		if *serverName == "" {
@@ -92,10 +95,25 @@ func main() {
 		}
 	}
 
+	if *authFile != "" {
+		data, err := os.ReadFile(*authFile)
+		if err != nil {
+			logger.Error("Failed to read auth file", "err", err)
+			os.Exit(1)
+		}
+		parts := strings.SplitN(strings.TrimSpace(string(data)), ":", 2)
+		if len(parts) != 2 {
+			logger.Error("Invalid auth file format, expected username:password")
+			os.Exit(1)
+		}
+		username = parts[0]
+		password = parts[1]
+	}
+
 	prometheus.MustRegister(versioncollector.NewCollector("memcached_exporter"))
 
 	if *address != "" {
-		prometheus.MustRegister(exporter.New(*address, *timeout, logger, tlsConfig))
+		prometheus.MustRegister(exporter.New(*address, *timeout, logger, tlsConfig, username, password))
 	}
 
 	if *pidFile != "" {
