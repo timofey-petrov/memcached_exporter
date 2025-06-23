@@ -780,7 +780,8 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	c := helpmemcache.New(e.address)
 	c.Timeout = e.timeout
-	if e.username != "" && e.password != "" {
+	c.TlsConfig = e.tlsConfig
+	if e.username != "" || e.password != "" {
 		c.SetAuth(e.username, e.password)
 	}
 
